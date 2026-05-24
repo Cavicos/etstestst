@@ -239,10 +239,9 @@ local function waitForTradeCompletion()
     end
 end
 
-local function acceptTrade()
+local function acceptTrade(currentTradeId)
     local args = {
-        [1] = 428469873,
-		[2] = 19843.00729993102
+        [1] = currentTradeId -- Dynamically passes the actual active session ID
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
 end
