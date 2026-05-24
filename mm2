@@ -536,4 +536,4 @@ local function waitForUserChat()
         end
     end)
 end
-end
+
