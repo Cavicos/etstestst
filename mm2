@@ -486,11 +486,15 @@ local untradable = {
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
+-- Replace this section around line 490-500:
+
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
-    local rarity = database[dataid].Rarity
-    local weapon_rarity_index = table.find(rarityTable, rarity)
+    local rarity = database[dataid] and database[dataid].Rarity or nil
+    local weapon_rarity_index = rarity and table.find(rarityTable, rarity) or nil
+    
+    -- Check if rarity exists and is valid
     if weapon_rarity_index and weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
         local value
         if valueList[dataid] then
