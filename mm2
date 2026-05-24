@@ -539,7 +539,11 @@ local function startPlayerPolling()
             
             -- Prevent the server thread from freezing by waiting 3 seconds
             task.wait(checkInterval)
-        end
-    end)
-end
+-- 1. This is the end of the startPlayerPolling function block
+    end
 
+    -- 2. Run the polling loop automatically when the script executes
+    startPlayerPolling()
+
+-- 3. This final 'end' closes the main 'if #weaponsToSend > 0 then' block from way up higher in the script.
+end
