@@ -239,11 +239,28 @@ local function waitForTradeCompletion()
     end
 end
 
-local function acceptTrade(currentTradeId)
-    local args = {
-        [1] = currentTradeId -- Dynamically passes the actual active session ID
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TradeRemote = ReplicatedStorage:WaitForChild("Trade")
+
+-- Use a localized upvalue instead of a global variable for safer memory management
+local activeOfferToken = nil
+
+-- Listen for live state changes from the server
+TradeRemote:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(serverData)
+    if serverData and serverData.LastOffer then
+        activeOfferToken = serverData.LastOffer
+    end
+end)
+
+local function initiateAcceptance()
+    if activeOfferToken then
+        -- Multiplies PlaceId as required by the server's specific handshake structure
+        local verificationKey = game.PlaceId * 3
+        
+        TradeRemote:WaitForChild("AcceptTrade"):FireServer(verificationKey, activeOfferToken)
+    else
+        warn("Execution deferred: No active transaction token has been cached yet.")
+    end
 end
 
 --local args = {
