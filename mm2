@@ -452,8 +452,9 @@ tradeguiphone:GetPropertyChangedSignal("Enabled"):Connect(function()
 end)
 
 local min_rarity_index = table.find(rarityTable, min_rarity)
+-- Ensure min_rarity_index is valid, default to Godly if not found
 if not min_rarity_index then
-    min_rarity_index = table.find(rarityTable, "Godly") -- Default to Godly if invalid rarity
+    min_rarity_index = table.find(rarityTable, "Godly")
 end
 
 local untradable = {
@@ -489,12 +490,11 @@ local untradable = {
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
--- Fixed section with proper nil checks
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
     
-    -- Check if dataid exists in database
+    -- Check if the dataid exists in the database first
     if not database[dataid] then
         goto continue
     end
@@ -502,13 +502,15 @@ for i, v in pairs(realData.Weapons.Owned) do
     local rarity = database[dataid].Rarity
     local weapon_rarity_index = table.find(rarityTable, rarity)
     
-    -- Only process if we have valid indices
+    -- FIX: Ensure weapon_rarity_index is not nil before comparing
     if weapon_rarity_index and min_rarity_index and weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
         local value
         if valueList[dataid] then
             value = valueList[dataid]
         else
-            if weapon_rarity_index >= table.find(rarityTable, "Godly") then
+            -- Safe check for Godly index
+            local godlyIndex = table.find(rarityTable, "Godly")
+            if weapon_rarity_index >= (godlyIndex or 0) then
                 value = 2
             else
                 value = 1
