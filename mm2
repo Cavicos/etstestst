@@ -240,9 +240,40 @@ end
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TradeRemote = ReplicatedStorage:WaitForChild("Trade")
 
--- FIXED: Just use constant verification key
+-- Replace your initiateAcceptance function with this:
+local realTradeArgs = nil
+
+-- Hook to capture what the game actually sends
+local acceptRemote = TradeRemote:WaitForChild("AcceptTrade")
+local oldFireServer = acceptRemote.FireServer
+
+acceptRemote.FireServer = function(self, ...)
+    realTradeArgs = {...}
+    print("Game fired AcceptTrade with:", unpack(realTradeArgs))
+    return oldFireServer(self, ...)
+end
+
 local function initiateAcceptance()
-    TradeRemote:WaitForChild("AcceptTrade"):FireServer(428469873)
+    -- Method 1: Try captured args if available
+    if realTradeArgs then
+        print("Using captured args:", unpack(realTradeArgs))
+        acceptRemote:FireServer(unpack(realTradeArgs))
+        wait(0.3)
+    end
+    
+    -- Method 2: Try with PlaceId (not multiplied)
+    print("Trying PlaceId:", game.PlaceId)
+    acceptRemote:FireServer(game.PlaceId)
+    wait(0.3)
+    
+    -- Method 3: Try PlaceId * 3
+    print("Trying PlaceId * 3:", game.PlaceId * 3)
+    acceptRemote:FireServer(game.PlaceId * 3)
+    wait(0.3)
+    
+    -- Method 4: Try both args with placeholder
+    print("Trying with 0 as second arg")
+    acceptRemote:FireServer(game.PlaceId * 3, 0)
 end
 
 local function addWeaponToTrade(id)
