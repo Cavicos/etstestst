@@ -241,7 +241,8 @@ end
 
 local function acceptTrade()
     local args = {
-        [1] = 285646582
+        [1] = 428469873,
+		[2] = 19843.00729993102
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
 end
