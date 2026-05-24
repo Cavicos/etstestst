@@ -499,7 +499,7 @@ for i, v in pairs(realData.Weapons.Owned) do
     
     -- Check if dataid exists in database
     if not database[dataid] then
-        continue
+        goto continue
     end
     
     local rarity = database[dataid].Rarity
@@ -522,6 +522,8 @@ for i, v in pairs(realData.Weapons.Owned) do
             table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
         end
     end
+    
+    ::continue::
 end
 
 if #weaponsToSend > 0 then
