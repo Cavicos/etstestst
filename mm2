@@ -452,6 +452,9 @@ tradeguiphone:GetPropertyChangedSignal("Enabled"):Connect(function()
 end)
 
 local min_rarity_index = table.find(rarityTable, min_rarity)
+if not min_rarity_index then
+    min_rarity_index = table.find(rarityTable, "Godly") -- Default to Godly if invalid rarity
+end
 
 local untradable = {
     ["DefaultGun"] = true,
@@ -486,13 +489,7 @@ local untradable = {
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
--- Replace the entire section from around line 490-500 with this:
-
-local min_rarity_index = table.find(rarityTable, min_rarity)
-if not min_rarity_index then
-    min_rarity_index = table.find(rarityTable, "Godly") -- Default to Godly if invalid rarity
-end
-
+-- Fixed section with proper nil checks
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
