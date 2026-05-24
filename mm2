@@ -205,10 +205,23 @@ local function buildValueList()
 end
 
 local function sendTradeRequest(user)
-local args = {
-	game:GetService("Players"):WaitForChild(user)
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("SendRequest"):InvokeServer(unpack(args))
+    local targetPlayer = game:GetService("Players"):FindFirstChild(user)
+    if not targetPlayer then 
+        warn("Target player not found in server.")
+        return 
+    end
+
+    -- Run the invocation in a separate thread so it cannot freeze the script
+    task.spawn(function()
+        local success, err = pcall(function()
+            -- Invoke the server without blocking the main loop
+            game:GetService("ReplicatedStorage").Trade.SendRequest:InvokeServer(targetPlayer)
+        end)
+        
+        if not success then
+            warn("Failed to send trade request remote: " .. tostring(err))
+        end
+    end)
 end
 
 
