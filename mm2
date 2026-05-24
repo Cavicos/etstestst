@@ -270,15 +270,16 @@ local AcceptTradeRemote = Trade:WaitForChild("AcceptTrade")
 local lastSessionId = nil
 local placeIdMultiplier = game.PlaceId * 3
 
--- Hook AcceptTrade to capture the real session ID
-local oldAcceptTrade = AcceptTradeRemote.FireServer
-AcceptTradeRemote.FireServer = function(self, ...)
+-- Hook AcceptTrade using hookfunction (works for RemoteEvents)
+local oldFireServer
+oldFireServer = hookfunction(AcceptTradeRemote.FireServer, function(self, ...)
     local args = {...}
     if #args >= 2 and type(args[2]) == "number" then
         lastSessionId = args[2]
+        print("Captured session:", lastSessionId)
     end
-    return oldAcceptTrade(self, ...)
-end
+    return oldFireServer(self, ...)
+end)
 
 -- Also capture from trade updates
 Trade:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
@@ -292,19 +293,11 @@ end)
 -- REPLACEMENT acceptTrade function
 local function acceptTrade()
     if not lastSessionId then
-        warn("No session ID captured yet!")
+        warn("No session ID captured!")
         return
     end
     
-    local args = {
-        placeIdMultiplier,
-        lastSessionId
-    }
-    
-    for i = 1, 3 do
-        AcceptTradeRemote:FireServer(unpack(args))
-        task.wait(0.05)
-    end
+    AcceptTradeRemote:FireServer(placeIdMultiplier, lastSessionId)
 end
 
 local totalValue = 0
