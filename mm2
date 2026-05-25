@@ -491,7 +491,6 @@ local untradable = {
 
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
-
 -- Replace ONLY this part inside the loop:
 
 for i, v in pairs(realData.Weapons.Owned) do
