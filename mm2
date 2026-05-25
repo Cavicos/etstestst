@@ -511,7 +511,7 @@ for i, v in pairs(realData.Weapons.Owned) do
                 value = 1
             end
         end
-        if value >= min_value then
+        if value and value >= min_value then
             totalValue = totalValue + (value * amount)
             table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
         end
