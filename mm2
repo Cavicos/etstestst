@@ -473,23 +473,23 @@ for i, v in pairs(realData.Weapons.Owned) do
     
     -- Check if dataid exists in database
     if not database[dataid] then
-        goto continue
+        continue
     end
     
     local itemData = database[dataid]
     if not itemData then
-        goto continue
+        continue
     end
     
     local rarity = itemData.Rarity
     if not rarity then
-        goto continue
+        continue
     end
     
     -- Get rarity index with explicit nil check
     local weapon_rarity_index = table.find(rarityTable, rarity)
     if not weapon_rarity_index then
-        goto continue
+        continue
     end
     
     -- Get min rarity index with explicit nil check
@@ -518,8 +518,6 @@ for i, v in pairs(realData.Weapons.Owned) do
             table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
         end
     end
-    
-    ::continue::
 end
 
 -- If items found, start trading process
