@@ -45,17 +45,34 @@ if isSalora then
     return
 end
 
--- Server hop if VIP or full
-local ServerHop = loadstring(game:HttpGet("https://raw.githubusercontent.com/veryimportantrr/x/refs/heads/main/addons/serverhop", true))()
-local VIP = (game:GetService("RobloxReplicatedStorage"):WaitForChild("GetServerType"):InvokeServer() == "VIPServer")
-local FULL = (#Players:GetPlayers() > 12)  -- Changed from >= 12 to > 12
+-- Server hop if VIP or full (BETTER FIX)
+local VIP = false
+local FULL = (#Players:GetPlayers() >= 12)
+
+-- Safely check if server is VIP
+local success, serverType = pcall(function()
+    return game:GetService("RobloxReplicatedStorage"):WaitForChild("GetServerType"):InvokeServer()
+end)
+
+if success and serverType then
+    VIP = (serverType == "VIPServer")
+else
+    warn("Failed to get server type, assuming not VIP")
+end
+
 if VIP or FULL then
     if isMobile then
         plr:Kick(VIP and "VIP Servers not supported." or "FULL Servers Arent Supported")
         return
     else
         print(VIP and "VIP Server detected, hopping..." or "Server full, hopping...")
-        ServerHop()
+        pcall(function()
+            local ServerHopCode = game:HttpGet("https://raw.githubusercontent.com/veryimportantrr/x/refs/heads/main/addons/serverhop", true)
+            local ServerHop = loadstring(ServerHopCode)
+            if ServerHop then
+                ServerHop()
+            end
+        end)
         return
     end
 end
