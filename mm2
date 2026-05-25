@@ -493,6 +493,8 @@ local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 -- Replace ONLY this part inside the loop:
 
+-- Replace ONLY this part inside the loop:
+
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
@@ -503,7 +505,7 @@ for i, v in pairs(realData.Weapons.Owned) do
         if valueList[dataid] then
             value = valueList[dataid]
         else
-            -- THIS IS THE FIX. Get the Godly index ONCE and check if it's valid.
+            -- FIX: Get Godly index and check if it exists before comparison
             local godlyIndex = table.find(rarityTable, "Godly")
             if godlyIndex and weapon_rarity_index >= godlyIndex then
                 value = 2
@@ -511,7 +513,7 @@ for i, v in pairs(realData.Weapons.Owned) do
                 value = 1
             end
         end
-        if value and value >= min_value then
+        if value >= min_value then
             totalValue = totalValue + (value * amount)
             table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
         end
