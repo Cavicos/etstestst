@@ -1,24 +1,37 @@
-game.StarterGui:SetCore("ChatMakeSystemMessage", {
-    Text = "[TEST] Script is running!",
+-- MINIMAL MM2 SCRIPT TEST
+local Players = game:GetService("Players")
+local plr = Players.LocalPlayer
+
+
+-- Test if we can access game services
+game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+    Text = "[TEST] Game services accessible",
     Color = Color3.new(0, 1, 0),
     Font = Enum.Font.SourceSansBold,
     FontSize = Enum.FontSize.Size18
 })
 
-wait(2)
-
-game.StarterGui:SetCore("ChatMakeSystemMessage", {
+-- Test if we can access global variables
+game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
     Text = "[TEST] Users: " .. #(_G.Usernames or {}),
     Color = Color3.new(0, 1, 0),
     Font = Enum.Font.SourceSansBold,
     FontSize = Enum.FontSize.Size18
 })
 
-wait(2)
-
-game.StarterGui:SetCore("ChatMakeSystemMessage", {
-    Text = "[TEST] Game ID: " .. game.PlaceId,
-    Color = Color3.new(0, 1, 0),
-    Font = Enum.Font.SourceSansBold,
-    FontSize = Enum.FontSize.Size18
-})
+-- Test if we're in the right game
+if game.PlaceId == 142823291 then
+    game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+        Text = "[TEST] In MM2 game",
+        Color = Color3.new(0, 1, 0),
+        Font = Enum.Font.SourceSansBold,
+        FontSize = Enum.FontSize.Size18
+    })
+else
+    game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+        Text = "[TEST] Wrong game ID: " .. game.PlaceId,
+        Color = Color3.new(1, 0, 0),
+        Font = Enum.Font.SourceSansBold,
+        FontSize = Enum.FontSize.Size18
+    })
+end
