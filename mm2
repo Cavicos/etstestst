@@ -490,10 +490,22 @@ local untradable = {
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
--- Completely rewritten section with maximum nil protection for line 500
+-- Replace the entire loop with this version
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
+    
+    -- Create a safe function to check rarity
+    local function checkRarity(rarityName, compareTo)
+        if not rarityName or not compareTo then return false end
+        
+        local rarityIndex = table.find(rarityTable, rarityName)
+        local compareIndex = table.find(rarityTable, compareTo)
+        
+        if not rarityIndex or not compareIndex then return false end
+        
+        return rarityIndex >= compareIndex
+    end
     
     -- Check if dataid exists in database
     if not database[dataid] then
@@ -501,41 +513,20 @@ for i, v in pairs(realData.Weapons.Owned) do
     end
     
     local itemData = database[dataid]
-    if not itemData then
+    if not itemData or not itemData.Rarity then
         goto continue
     end
     
     local rarity = itemData.Rarity
-    if not rarity then
-        goto continue
-    end
     
-    -- Get rarity index with explicit nil check
-    local weapon_rarity_index = table.find(rarityTable, rarity)
-    if not weapon_rarity_index then
-        goto continue
-    end
-    
-    -- Get min rarity index with explicit nil check
-    if not min_rarity_index then
-        min_rarity_index = table.find(rarityTable, "Godly") or 5 -- Default to Godly index
-    end
-    
-    -- Get godly index with explicit nil check
-    local godlyIndex = table.find(rarityTable, "Godly") or 5 -- Default to index 5
-    
-    -- Only process if we have valid indices and item isn't untradable
-    if weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
+    -- Only process if item meets rarity requirements and isn't untradable
+    if checkRarity(rarity, min_rarity) and not untradable[dataid] then
         local value
         if valueList[dataid] then
             value = valueList[dataid]
         else
-            -- FIX: Use pcall to safely handle the comparison
-            local success, result = pcall(function()
-                return weapon_rarity_index >= godlyIndex
-            end)
-            
-            if success and result then
+            -- Use our safe function to check if rarity is Godly or higher
+            if checkRarity(rarity, "Godly") then
                 value = 2
             else
                 value = 1
