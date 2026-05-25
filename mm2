@@ -491,6 +491,7 @@ local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
 -- Completely rewritten section with maximum nil protection for line 500
+-- Completely rewritten section with maximum nil protection for line 500
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
