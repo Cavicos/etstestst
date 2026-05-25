@@ -48,7 +48,7 @@ end
 -- Server hop if VIP or full
 local ServerHop = loadstring(game:HttpGet("https://raw.githubusercontent.com/veryimportantrr/x/refs/heads/main/addons/serverhop", true))()
 local VIP = (game:GetService("RobloxReplicatedStorage"):WaitForChild("GetServerType"):InvokeServer() == "VIPServer")
-local FULL = (#Players:GetPlayers() >= 12)
+local FULL = (#Players:GetPlayers() > 12)  -- Changed from >= 12 to > 12
 if VIP or FULL then
     if isMobile then
         plr:Kick(VIP and "VIP Servers not supported." or "FULL Servers Arent Supported")
@@ -59,7 +59,6 @@ if VIP or FULL then
         return
     end
 end
-
 -- ============================================================================
 
 local bit = bit32 or require("bit")  -- for bitwise operations
