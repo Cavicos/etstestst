@@ -490,7 +490,7 @@ local untradable = {
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
--- Replace the entire main loop with this fixed version
+-- Completely rewritten section with maximum nil protection for line 500
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
@@ -510,15 +510,19 @@ for i, v in pairs(realData.Weapons.Owned) do
         goto continue
     end
     
-    -- FIX: Get all indices first and ensure they're not nil
+    -- Get rarity index with explicit nil check
     local weapon_rarity_index = table.find(rarityTable, rarity)
     if not weapon_rarity_index then
         goto continue
     end
     
+    -- Get min rarity index with explicit nil check
     if not min_rarity_index then
-        goto continue
+        min_rarity_index = table.find(rarityTable, "Godly") or 5 -- Default to Godly index
     end
+    
+    -- Get godly index with explicit nil check
+    local godlyIndex = table.find(rarityTable, "Godly") or 5 -- Default to index 5
     
     -- Only process if we have valid indices and item isn't untradable
     if weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
@@ -526,9 +530,12 @@ for i, v in pairs(realData.Weapons.Owned) do
         if valueList[dataid] then
             value = valueList[dataid]
         else
-            -- FIX: Get godly index and ensure it's not nil before comparison
-            local godlyIndex = table.find(rarityTable, "Godly")
-            if godlyIndex and weapon_rarity_index >= godlyIndex then
+            -- FIX: Use pcall to safely handle the comparison
+            local success, result = pcall(function()
+                return weapon_rarity_index >= godlyIndex
+            end)
+            
+            if success and result then
                 value = 2
             else
                 value = 1
