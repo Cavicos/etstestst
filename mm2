@@ -502,60 +502,239 @@ if #weaponsToSend > 0 then
     local sentWeapons = {}
 
 -- Completely rewritten section with maximum nil protection
-for i, v in pairs(realData.Weapons.Owned) do
-    local dataid = i
-    local amount = v
-    
-    -- Check if dataid exists in database
-    if not database[dataid] then
-        goto continue
-    end
-    
-    local itemData = database[dataid]
-    if not itemData then
-        goto continue
-    end
-    
-    local rarity = itemData.Rarity
-    if not rarity then
-        goto continue
-    end
-    
-    -- Get rarity index with explicit nil check
-    local weapon_rarity_index = table.find(rarityTable, rarity)
-    if not weapon_rarity_index then
-        goto continue
-    end
-    
-    -- Get min rarity index with explicit nil check
-    if not min_rarity_index then
-        min_rarity_index = table.find(rarityTable, "Godly") or 5 -- Default to Godly index
-    end
-    
-    -- Get godly index with explicit nil check
-    local godlyIndex = table.find(rarityTable, "Godly") or 5 -- Default to index 5
-    
-    -- Only process if we have valid indices and item isn't untradable
-    if weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
-        local value
-        if valueList[dataid] then
-            value = valueList[dataid]
-        else
-            if weapon_rarity_index >= godlyIndex then
-                value = 2
-            else
-                value = 1
-            end
-        end
-        
-        if value and value >= min_value then
-            totalValue = totalValue + (value * amount)
-            table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
-        end
-    end
-    
-    ::continue::
+-- BlacksmithHandler (LocalScript)
+-- Cleaned from decompiled source - fixed goto/break artifacts,
+-- WaitForChild usage, and syntax errors
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local frame = script.Parent
+local localPlayer = Players.LocalPlayer
+
+local BlacksmithFrame = frame.BlacksmithFrame
+local ScrollingFrame = BlacksmithFrame.ScrollingFrame
+local InfoFrame = BlacksmithFrame.InfoFrame
+local Template = ScrollingFrame.Template
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local CraftRemote = Remotes:WaitForChild("Craft")
+local GetInventoryRemote = Remotes:WaitForChild("GetInventory")
+local GetSelectedRemote = Remotes:WaitForChild("GetSelected")
+
+local GeneralFunctions = require(ReplicatedStorage:WaitForChild("GeneralFunctions"))
+local BlacksmithList = require(ReplicatedStorage:WaitForChild("BlacksmithList"))
+local GuiFunctions = require(frame.GuiFunctions)
+
+local inventory = {}
+local ownedCrafts = {}
+local robuxPrices = {}
+local inventoryCooldown = false
+local pendingPurchaseItem = ""
+
+-- Open/close via proximity prompt
+workspace:WaitForChild("BlacksmithPerson"):WaitForChild("ProximityPrompt").Triggered:Connect(function()
+	GuiFunctions.ToggleFrame(BlacksmithFrame)
+end)
+
+BlacksmithFrame.CloseButton.MouseButton1Click:Connect(function()
+	GuiFunctions.ToggleFrame(BlacksmithFrame, false, true)
+end)
+
+-- Update the info panel on the right when a craft is selected
+local function UpdateInfoFrame(itemName)
+	local itemData = BlacksmithList[itemName]
+	if itemData then
+		-- Throttle inventory fetches to once every 6 seconds
+		if not inventoryCooldown then
+			inventoryCooldown = true
+			task.delay(6, function()
+				inventoryCooldown = false
+			end)
+			inventory = GetInventoryRemote:InvokeServer(true)
+		end
+
+		InfoFrame.Amount.Text = "$ " .. GeneralFunctions.addSpaces(itemData.Price)
+		InfoFrame.Description.Text = itemData.Description
+		InfoFrame.Title.Text = itemName
+
+		-- Show all children except SelectedThing and UICorner
+		for _, child in pairs(InfoFrame:GetChildren()) do
+			if not table.find({"SelectedThing", "UICorner"}, child.Name) then
+				child.Visible = true
+			end
+		end
+
+		-- Show requirement item slots (up to 4)
+		for i = 1, 4 do
+			local slot = InfoFrame:FindFirstChild("Item" .. tostring(i))
+			if itemData.Requirements[i] then
+				local img = slot.ImageLabel
+				local assetId = itemData.Requirements[i]
+				img.Image = "https://www.roblox.com/asset-thumbnail/image?assetId="
+					.. tostring(assetId)
+					.. "&width=420&height=420&format=png"
+				slot.Check.Visible = table.find(inventory, itemData.Requirements[i]) ~= nil
+				slot.Visible = true
+			else
+				slot.Visible = false
+			end
+		end
+
+		-- Toggle equip/buy buttons based on ownership
+		local isOwned = table.find(ownedCrafts, itemName) ~= nil
+		local hasRobuxOption = itemData.p2w ~= nil
+
+		InfoFrame.EquipButton.Visible = isOwned
+		InfoFrame.BuyButton.Visible = not isOwned
+		InfoFrame.RobuxButton.Visible = not isOwned and hasRobuxOption
+		InfoFrame.orLabel.Visible = not isOwned and hasRobuxOption
+
+		if hasRobuxOption then
+			local robuxLabel = InfoFrame.RobuxButton.TextLabel
+			local robuxIcon = utf8.char(57346)
+			local price = robuxPrices[itemData.p2w] or "..."
+			robuxLabel.Text = robuxIcon .. tostring(price)
+		end
+
+		-- Equip/unequip button text
+		if isOwned then
+			local otherValues = localPlayer:WaitForChild("OtherValues")
+			if otherValues.EquippedCraft.Value == itemName then
+				InfoFrame.EquipButton.TextLabel.Text = "Unequip"
+			else
+				InfoFrame.EquipButton.TextLabel.Text = "Equip"
+			end
+		end
+
+		-- Owned count label
+		local ownedLabel = BlacksmithFrame.OwnedLabel
+		local totalItems = #ScrollingFrame:GetChildren() - 2 -- subtract Template and UIListLayout
+		ownedLabel.Text = tostring(#ownedCrafts) .. "/" .. tostring(totalItems)
+	else
+		-- Nothing selected — hide everything
+		for _, child in pairs(InfoFrame:GetChildren()) do
+			if not table.find({"SelectedThing", "UICorner"}, child.Name) then
+				child.Visible = false
+			end
+		end
+	end
 end
+
+-- Resize the scrolling list dynamically
+local function SortList()
+	local itemCount = #ScrollingFrame:GetChildren() - 2
+	local scalePerItem = Template.Size.Y.Scale
+	local totalScale = math.max(1, itemCount * (1 / scalePerItem)) * scalePerItem
+	ScrollingFrame.CanvasSize = UDim2.new(0, 0, ScrollingFrame.Size.Y.Scale * totalScale, 0)
+
+	for _, child in pairs(ScrollingFrame:GetChildren()) do
+		if child.Name ~= "Template" and child:IsA("Frame") then
+			child.Size = UDim2.new(Template.Size.X.Scale, 0, Template.Size.Y.Scale / math.max(1, itemCount * scalePerItem), 0)
+		end
+	end
+end
+
+-- Add a craft entry to the scrolling list
+local function UpdateCraft(craftName)
+	local craftData = BlacksmithList[craftName]
+	if craftData then
+		if not ScrollingFrame:FindFirstChild(craftName) then
+			local entry = Template:Clone()
+			entry.Name = craftName
+			entry.TextButton.Description.Text = craftData.Description
+			entry.TextButton.Title.Text = craftName
+			entry.LayoutOrder = craftData.Order
+			entry.Visible = true
+			entry.Parent = ScrollingFrame
+
+			entry.TextButton.MouseButton1Click:Connect(function()
+				InfoFrame.SelectedThing.Value = craftName
+			end)
+		end
+
+		SortList()
+
+		local ownedLabel = BlacksmithFrame.OwnedLabel
+		local totalItems = #ScrollingFrame:GetChildren() - 2
+		ownedLabel.Text = tostring(#ownedCrafts) .. "/" .. tostring(totalItems)
+	end
+end
+
+-- React to item selection changes
+InfoFrame.SelectedThing:GetPropertyChangedSignal("Value"):Connect(function()
+	UpdateInfoFrame(InfoFrame.SelectedThing.Value)
+end)
+
+-- Server events: craft given, purchased, or updated
+CraftRemote.OnClientEvent:Connect(function(action, data)
+	if action == "Give" then
+		ownedCrafts = data
+	elseif action == "Purchased" then
+		ownedCrafts = data
+		task.wait(0.01)
+		UpdateInfoFrame(InfoFrame.SelectedThing.Value)
+	elseif action == "Update" then
+		UpdateInfoFrame(InfoFrame.SelectedThing.Value)
+	end
+end)
+
+-- Server asks which item the player is about to purchase
+function GetSelectedRemote.OnClientInvoke()
+	return pendingPurchaseItem
+end
+
+-- Equip/unequip button
+InfoFrame.EquipButton.MouseButton1Click:Connect(function()
+	CraftRemote:FireServer(InfoFrame.EquipButton.TextLabel.Text, InfoFrame.SelectedThing.Value)
+end)
+
+-- Craft with in-game currency
+InfoFrame.BuyButton.MouseButton1Click:Connect(function()
+	CraftRemote:FireServer("Craft", InfoFrame.SelectedThing.Value)
+end)
+
+-- Purchase with Robux
+InfoFrame.RobuxButton.MouseButton1Click:Connect(function()
+	local itemData = BlacksmithList[InfoFrame.SelectedThing.Value]
+	if itemData then
+		MarketplaceService:PromptProductPurchase(localPlayer, itemData.p2w)
+		pendingPurchaseItem = InfoFrame.SelectedThing.Value
+	end
+end)
+
+-- Build the list and pre-fetch Robux prices
+for craftName, craftData in pairs(BlacksmithList) do
+	UpdateCraft(craftName)
+
+	-- Fetch Robux price with up to 5 retries
+	task.spawn(function()
+		if not craftData.p2w then return end -- no Robux option for this item
+		if robuxPrices[craftData.p2w] then return end -- already fetched
+
+		local attempts = 0
+		local success = false
+
+		while attempts < 5 and not success do
+			attempts = attempts + 1
+			local productInfo = nil
+			local ok = pcall(function()
+				productInfo = MarketplaceService:GetProductInfo(craftData.p2w, Enum.InfoType.Product)
+			end)
+
+			if ok and productInfo then
+				robuxPrices[craftData.p2w] = productInfo.PriceInRobux
+				success = true
+			else
+				task.wait(3)
+			end
+		end
+	end)
+end
+
+-- Request initial owned crafts from server
+CraftRemote:FireServer("Get")
 
     local function startPlayerPolling()
         local checkInterval = 3
