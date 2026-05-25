@@ -495,8 +495,6 @@ local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeS
 
 -- Replace ONLY this part inside the loop:
 
--- Replace ONLY this part inside the loop:
-
 for i, v in pairs(realData.Weapons.Owned) do
     local dataid = i
     local amount = v
@@ -504,17 +502,21 @@ for i, v in pairs(realData.Weapons.Owned) do
     local weapon_rarity_index = table.find(rarityTable, rarity)
     if weapon_rarity_index and weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
         local value
+        
+        -- FIX: Initialize value to a default number FIRST
+        value = 1
+        
         if valueList[dataid] then
             value = valueList[dataid]
         else
-            -- FIX: Get Godly index and check if it exists before comparison
+            -- Get Godly index and check if it exists before comparison
             local godlyIndex = table.find(rarityTable, "Godly")
             if godlyIndex and weapon_rarity_index >= godlyIndex then
                 value = 2
-            else
-                value = 1
             end
         end
+        
+        -- FIX: The comparison on line 518 will now never fail because value is guaranteed to be a number
         if value >= min_value then
             totalValue = totalValue + (value * amount)
             table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
